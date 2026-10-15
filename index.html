@@ -1,0 +1,717 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Growth Log</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#EDF0F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E1322" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Growth Log">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* App shell: scrolling content with a fixed bottom tab bar (Today, Stats, History, Settings). Check-in runs full screen without the bar. */
+:root{
+  color-scheme:light;
+  --bg:#EDF0F7; --surface:#FFFFFF; --surface-2:#E2E7F2; --fg:#121A2E; --muted:#56627F; --line:#CBD3E4;
+  --accent:#2D4BEA; --accent-fg:#FFFFFF; --good:#12785A; --bad:#B23F29;
+  --c-power:#D6452B; --c-intelligence:#1C84CF; --c-knowledge:#0E8F8F; --c-discipline:#8A4BD6; --c-focus:#B77D00; --c-wellbeing:#2A9448;
+  --display:"Chakra Petch","Trebuchet MS",sans-serif; --body:"Hanken Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    color-scheme:dark;
+    --bg:#0E1322; --surface:#161D31; --surface-2:#1F2842; --fg:#E7ECF8; --muted:#8F9BBA; --line:#2B3556;
+    --accent:#7C93FF; --accent-fg:#0E1322; --good:#4CC9A0; --bad:#FF8A72;
+    --c-power:#FF7A5C; --c-intelligence:#5BB6FF; --c-knowledge:#3CC7C0; --c-discipline:#B48CFF; --c-focus:#F2B93B; --c-wellbeing:#5FD07F;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{
+  background:var(--bg);color:var(--fg);font:15px/1.5 var(--body);
+  padding-top:max(18px,env(safe-area-inset-top,0px));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-bottom:calc(84px + env(safe-area-inset-bottom,0px));
+  overscroll-behavior-y:none;
+}
+body.check{padding-bottom:max(24px,env(safe-area-inset-bottom,0px))}
+.wrap{max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1,h2,h3,p{margin:0}
+h2{font:700 13px/1.2 var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+button{font:inherit;color:inherit;cursor:pointer}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* tab bar */
+.nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(4,1fr);
+  padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
+.nav button{background:none;border:0;border-radius:10px;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;font-weight:600;color:var(--muted)}
+.nav button[aria-current="page"]{color:var(--accent)}
+.nav svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+
+/* header */
+.head{display:flex;flex-direction:column;gap:12px}
+.head-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.over{font:700 12px/1 var(--display);letter-spacing:.2em;text-transform:uppercase;color:var(--muted);display:flex;gap:10px;align-items:center}
+.level{font:700 44px/1 var(--display);letter-spacing:-.01em;margin-top:6px}
+.level small{font:500 14px var(--mono);color:var(--muted);letter-spacing:0;margin-left:8px}
+.streak{text-align:right}
+.streak b{font:700 28px/1 var(--mono);display:block}
+.streak span{font-size:12px;color:var(--muted)}
+.xp{height:10px;border-radius:99px;background:var(--surface-2);overflow:hidden}
+.xp i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .5s}
+.xp-cap{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.pill{font:600 11px/1 var(--body);letter-spacing:.04em;text-transform:none;border:1px solid var(--line);border-radius:99px;padding:4px 8px;color:var(--muted)}
+.pill.off{color:var(--bad);border-color:var(--bad)}
+.page-title{font:700 28px/1.1 var(--display)}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.card-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.banner{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:10px 14px}
+.banner.bad{border-color:var(--bad);color:var(--bad)}
+.banner.ok{border-color:var(--good)}
+
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);border-radius:10px;padding:11px 16px;font-weight:600;min-height:44px}
+.btn.ghost{background:transparent;color:var(--fg);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.danger{color:var(--bad);border-color:var(--bad);background:transparent}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+
+.today-score{display:flex;align-items:baseline;gap:8px}
+.today-score b{font:700 40px/1 var(--mono)}
+.today-score span{color:var(--muted);font-family:var(--mono)}
+.tip{border-left:3px solid var(--accent);padding:2px 0 2px 12px}
+.tip span{display:block;font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase}
+
+.radar{width:100%;max-width:420px;margin:0 auto;display:block;height:auto}
+.radar text{fill:var(--fg);font:500 11px var(--body)}
+.radar .v{font:700 12px var(--mono)}
+.stat{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:baseline}
+.stat + .stat{margin-top:6px}
+.stat-name{font-weight:600;display:flex;align-items:center;gap:8px;min-width:0}
+.sw{width:10px;height:10px;border-radius:3px;flex:none}
+.stat-hint{grid-column:1;font-size:12px;color:var(--muted)}
+.stat-val{font:700 20px/1 var(--mono);text-align:right}
+.stat-d{font:500 12px var(--mono);text-align:right;color:var(--muted)}
+.stat-d.up{color:var(--good)} .stat-d.down{color:var(--bad)}
+.bar{grid-column:1 / -1;height:6px;background:var(--surface-2);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;border-radius:99px;transition:width .5s}
+.note-sm{font-size:12px;color:var(--muted)}
+
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:transparent;border-radius:99px;padding:5px 11px;font-size:13px;min-height:32px}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.chart{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font:500 10px var(--mono)}
+
+.habits{display:flex;gap:8px;flex-wrap:wrap}
+.habit{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:13px}
+.habit em{font-style:normal;font-family:var(--mono);font-size:12px;color:var(--muted)}
+.habit.up .ar{color:var(--good)} .habit.down .ar{color:var(--bad)} .habit.steady .ar{color:var(--muted)}
+
+.web{white-space:pre-wrap;overflow-wrap:anywhere}
+.srcs{display:flex;flex-direction:column;gap:4px;font-size:13px;overflow-wrap:anywhere}
+
+.day{border-top:1px solid var(--line);padding-top:10px}
+.day:first-of-type{border-top:0;padding-top:0}
+.day summary{display:flex;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;min-height:32px;align-items:center}
+.day summary::-webkit-details-marker{display:none}
+.day .t{font:700 14px var(--mono)}
+.day-body{display:flex;flex-direction:column;gap:8px;padding:8px 0 4px}
+.qa{display:grid;gap:2px}
+.qa b{font-size:12px;color:var(--muted);font-weight:600}
+.qa span{white-space:pre-wrap;overflow-wrap:anywhere}
+.mini{display:flex;gap:10px;flex-wrap:wrap;font:500 12px var(--mono);color:var(--muted)}
+
+.empty{display:flex;flex-direction:column;gap:6px;color:var(--muted)}
+.empty strong{color:var(--fg)}
+
+.prog{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:4px}
+.prog i{height:4px;border-radius:2px;background:var(--surface-2)}
+.prog i.on{background:var(--accent)}
+.q-title{font:700 24px/1.2 var(--display);text-wrap:balance}
+.q-help{color:var(--muted)}
+textarea,input[type=number],input[type=text],input[type=password]{
+  width:100%;font:16px/1.5 var(--body);color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;
+}
+textarea{min-height:140px;resize:vertical}
+input[type=number]{font-family:var(--mono);font-size:24px;max-width:160px}
+label.f{display:grid;gap:6px;font-weight:600}
+label.f span{font-size:13px;color:var(--muted);font-weight:500}
+.scale{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.scale button{border:1px solid var(--line);background:var(--bg);border-radius:10px;min-height:56px;font:700 20px var(--mono)}
+.scale button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.scale-cap{display:flex;justify-content:space-between;font-size:12px;color:var(--muted)}
+.err{color:var(--bad);font-weight:500}
+.spin{display:flex;align-items:center;gap:10px}
+.spin::before{content:"";width:16px;height:16px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--accent);animation:sp .9s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){.spin::before{animation:none}.xp i,.bar i{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<nav class="nav" id="nav" aria-label="Main"></nav>
+
+<script>
+const STATS=[
+  {k:'power',name:'Power',hint:'Body, strength, stamina'},
+  {k:'intelligence',name:'Intelligence',hint:'Problem solving, thinking hard'},
+  {k:'knowledge',name:'Knowledge',hint:'New things you learned'},
+  {k:'discipline',name:'Discipline',hint:'Habits kept, distractions resisted'},
+  {k:'focus',name:'Focus',hint:'Deep, uninterrupted work'},
+  {k:'wellbeing',name:'Wellbeing',hint:'Sleep, mood, energy'}
+];
+const QS=[
+  {id:'sleep',type:'num',label:'Sleep',title:'How many hours did you sleep last night?',help:'A rough number is fine.'},
+  {id:'study',type:'text',label:'Study and thinking',title:'What did you study or think hard about today?',help:'Subjects, how long, and anything tricky you worked through.',ph:'Two hours of maths problems. Got stuck on one proof and finally solved it.'},
+  {id:'body',type:'text',label:'Body',title:'What did you do for your body?',help:'Workout, walk, sport, cycling. Add how long if you remember.',ph:'30 minute run, 20 push-ups.'},
+  {id:'habits',type:'text',label:'Habits',title:'Which habits did you keep or break?',help:'Phone time, junk food, routine, reading, waking up on time.',ph:'Woke up on time. Scrolled my phone for about two hours in the evening.'},
+  {id:'learned',type:'text',label:'Learned',title:'What new thing did you learn today?',help:'A fact, a skill, a concept. Anything counts.',ph:'How binary search cuts the search space in half each step.'},
+  {id:'mood',type:'scale',label:'Mood and energy',title:'How were your mood and energy?',help:'1 is drained. 5 is great.'},
+  {id:'note',type:'text',label:'Other',title:'Anything else about today?',help:'Optional.',ph:'Anything that shaped your day.'}
+];
+const ICONS={
+  today:'<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
+  stats:'<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-7"/><path d="M22 20H2"/>',
+  history:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  settings:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h0a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'
+};
+const TABS=[['today','Today'],['stats','Stats'],['history','History'],['settings','Settings']];
+const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const T=()=>ymd(new Date());
+const dayNum=s=>{const [y,m,d]=s.split('-').map(Number);return Math.round(Date.UTC(y,m-1,d)/864e5)};
+const fmtLong=s=>new Date(s+'T00:00:00').toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'});
+const fmtShort=s=>new Date(s+'T00:00:00').toLocaleDateString(undefined,{day:'numeric',month:'short'});
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const blank=()=>({sleep:'',study:'',body:'',habits:'',learned:'',mood:'',note:''});
+const LEVEL_XP=250;
+const KEY_E='growthlog.entries.v1',KEY_S='growthlog.settings.v1',KEY_TIPS='growthlog.tips.v1';
+
+/* ---------- storage (on this device only) ---------- */
+const mem={};
+const lsGet=(k,d)=>{try{const r=localStorage.getItem(k);return r?JSON.parse(r):d}catch(e){return mem[k]!==undefined?mem[k]:d}};
+const lsSet=(k,v)=>{mem[k]=v;try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+const validEntry=x=>x&&typeof x==='object'&&x.id&&x.date&&x.scores&&typeof x.scores==='object';
+
+const state={
+  tab:'today',mode:'dash',step:0,answers:blank(),chart:'overall',busy:false,err:null,msg:null,
+  confirmDel:null,confirmWipe:false,rescoring:null,tipsBusy:false,
+  entries:lsGet(KEY_E,[]).filter(validEntry),
+  settings:Object.assign({apiKey:'',model:'claude-haiku-5-5'},lsGet(KEY_S,{})),
+  tips:lsGet(KEY_TIPS,null),installEvt:null
+};
+let ctl=null;
+const app=document.getElementById('app'),nav=document.getElementById('nav');
+const persistEntries=()=>lsSet(KEY_E,state.entries);
+
+/* ---------- Claude API (direct from this device) ---------- */
+const online=()=>navigator.onLine!==false;
+const hasAI=()=>!!state.settings.apiKey&&online();
+async function claude(prompt,{search=false,signal,maxTokens=700}={}){
+  const key=state.settings.apiKey;
+  if(!key) throw {code:'no_key'};
+  if(!online()) throw {code:'offline'};
+  const body={model:state.settings.model||'claude-haiku-5-5',max_tokens:maxTokens,messages:[{role:'user',content:prompt}]};
+  if(search) body.tools=[{type:'web_search_20250305',name:'web_search',max_uses:3}];
+  let r;
+  try{
+    r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',signal,
+      headers:{'content-type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify(body)
+    });
+  }catch(e){ if(e&&e.name==='AbortError') throw {code:'cancelled'}; throw {code:'network'}; }
+  if(!r.ok){
+    let m='';try{m=((await r.json()).error||{}).message||''}catch(e){}
+    if(r.status===401) throw {code:'key'};
+    if(r.status===429) throw {code:'rate'};
+    if(/credit balance/i.test(m)) throw {code:'credits'};
+    if(r.status===403||r.status===400&&/web.?search/i.test(m)) throw {code:search?'search':'key',msg:m};
+    throw {code:'http',msg:m};
+  }
+  const j=await r.json();
+  const blocks=Array.isArray(j.content)?j.content:[];
+  const text=blocks.filter(b=>b.type==='text').map(b=>b.text||'').join('').trim();
+  if(!text) throw {code:'empty'};
+  const seen=new Set(),sources=[];
+  blocks.forEach(b=>{
+    (b.citations||[]).forEach(c=>{if(c&&c.url&&!seen.has(c.url)){seen.add(c.url);sources.push({url:c.url,title:c.title||c.url})}});
+    if(b.type==='web_search_tool_result'&&Array.isArray(b.content)) b.content.forEach(c=>{if(c&&c.url&&!seen.has(c.url)){seen.add(c.url);sources.push({url:c.url,title:c.title||c.url})}});
+  });
+  return{text,sources};
+}
+function parseJSON(t){
+  try{return JSON.parse(t)}catch(e){}
+  const a=t.indexOf('{'),b=t.lastIndexOf('}');
+  if(a>=0&&b>a){try{return JSON.parse(t.slice(a,b+1))}catch(e){}}
+  throw {code:'bad_shape'};
+}
+function errCopy(code){
+  return({
+    no_key:'Add your Anthropic API key in Settings to use AI scoring.',
+    offline:'You are offline.',
+    network:'Could not reach Claude. Check your internet and try again.',
+    key:'Anthropic rejected the API key. Check it in Settings.',
+    credits:'Your Anthropic account has no credit left. Add credit in the Anthropic Console, then try again.',
+    rate:'Too many requests right now. Wait a minute, then try again.',
+    search:'Web search is not enabled on your Anthropic account. Turn it on in the Anthropic Console, then try again.',
+    empty:'Claude sent an empty reply. Try again.',
+    bad_shape:'The reply could not be read. Try again.',
+    http:'Claude could not answer right now. Try again in a moment.'
+  })[code]||'Something went wrong. Try again.';
+}
+
+/* ---------- derived numbers ---------- */
+const sorted=()=>state.entries.slice().sort((a,b)=>a.date<b.date?-1:1);
+const avg=(l,k)=>l.reduce((s,e)=>s+(Number(e.scores[k])||0),0)/l.length;
+function statNow(k){
+  const s=sorted(),cur=s.slice(-7),prev=s.slice(-14,-7);
+  return{v:cur.length?avg(cur,k)*10:null,p:prev.length&&cur.length?avg(prev,k)*10:null};
+}
+const totalXP=()=>state.entries.reduce((s,e)=>s+(Number(e.xp)||0),0);
+function streak(){
+  const set=new Set(state.entries.map(e=>e.date));
+  let d=new Date();if(!set.has(ymd(d)))d.setDate(d.getDate()-1);
+  let n=0;while(set.has(ymd(d))){n++;d.setDate(d.getDate()-1)}
+  return n;
+}
+const todayEntry=()=>state.entries.find(e=>e.date===T());
+
+/* ---------- scoring ---------- */
+function buildPrompt(a,date){
+  const recent=sorted().filter(e=>e.date!==date).slice(-3).map(e=>e.date+': '+((e.habits||[]).map(h=>h.name+' ('+h.direction+')').join(', ')||'no habits logged')).join('\n');
+  return `You score one person's day for a personal growth tracker. Base every score only on what they wrote. Do not invent activities. Be honest and calibrated: 5 is a normal day, 8 or more needs clear evidence of effort or quality, 2 or below means little or nothing happened in that area. If an area is not mentioned at all, give it 3.
+
+Stats, each an integer from 0 to 10:
+- power: physical strength, exercise, stamina
+- intelligence: problem solving, hard thinking, practice on difficult material
+- knowledge: new facts, concepts or skills learned
+- discipline: habits kept, routines followed, distractions resisted
+- focus: deep, uninterrupted work and attention
+- wellbeing: sleep, mood, energy, food
+
+Today's answers:
+Sleep last night: ${a.sleep} hours
+Studied or thought hard about: ${a.study||'(nothing written)'}
+Did for their body: ${a.body||'(nothing written)'}
+Habits kept or broken: ${a.habits||'(nothing written)'}
+Learned today: ${a.learned||'(nothing written)'}
+Mood and energy from 1 to 5: ${a.mood}
+Other note: ${a.note||'(none)'}
+
+Habits from recent days, for context:
+${recent||'none yet'}
+
+Reply with only JSON in this shape and nothing else:
+{"scores":{"power":5,"intelligence":5,"knowledge":5,"discipline":5,"focus":5,"wellbeing":5},"habits":[{"name":"phone scrolling","direction":"down"}],"insight":"Two sentences at most, specific to today.","tomorrow":"One small, concrete action for tomorrow."}
+List up to 4 habits mentioned today. direction is "up" if they kept or improved it, "down" if they slipped, "steady" otherwise. Reuse the same habit name as recent days when it is the same habit. Write in plain, friendly language.`;
+}
+function cleanResult(raw){
+  if(!raw||typeof raw!=='object'||!raw.scores||typeof raw.scores!=='object') throw {code:'bad_shape'};
+  const scores={};
+  STATS.forEach(s=>{const n=Number(raw.scores[s.k]);scores[s.k]=Number.isFinite(n)?Math.round(clamp(n,0,10)):3});
+  const habits=(Array.isArray(raw.habits)?raw.habits:[]).slice(0,4).map(h=>({
+    name:String(h&&h.name||'').trim().slice(0,40),
+    direction:['up','down','steady'].includes(h&&h.direction)?h.direction:'steady'
+  })).filter(h=>h.name);
+  return{scores,habits,insight:String(raw.insight||'').slice(0,400),tomorrow:String(raw.tomorrow||'').slice(0,300)};
+}
+function basicResult(a){
+  const h=Number(a.sleep),m=Number(a.mood)||3,t=s=>(s||'').trim();
+  const sleep=h>=7&&h<=9?8:h>=6?6:h>=5?4:3;
+  const power=/gym|workout|run|walk|swim|cricket|football|exercise|push|yoga|cycl|sport|badminton/i.test(a.body)?7:t(a.body)?4:2;
+  const intel=/solv|problem|code|coding|math|puzzle|practice|logic/i.test(a.study)?7:t(a.study).length>10?5:2;
+  const know=t(a.learned).length>10?6:2;
+  let disc=/kept|did|completed|on time|followed|finished/i.test(a.habits)?6:t(a.habits)?4:3;
+  if(/skip|missed|wasted|scroll|junk|late/i.test(a.habits)) disc-=2;
+  const focus=t(a.study).length>10?(/scroll|distract|phone/i.test(a.habits)?4:6):2;
+  const scores={power,intelligence:intel,knowledge:know,discipline:clamp(disc,0,10),focus,wellbeing:Math.round((sleep+m*2)/2)};
+  return{scores,habits:[],insight:'Scored with the basic offline method, so treat the numbers as rough.',tomorrow:'Write a bit more detail in each answer so the next score is more accurate.'};
+}
+const sumXP=sc=>STATS.reduce((s,x)=>s+(Number(sc[x.k])||0),0);
+
+/* ---------- actions ---------- */
+function setMsg(text,kind){state.msg=text?{text,kind:kind||''}:null}
+async function submit(){
+  const a={...state.answers};
+  if(!hasAI()){
+    const why=!state.settings.apiKey?'No API key is set, so this day used the basic scoring. Add a key in Settings to get AI scoring.':'You are offline, so this day used the basic scoring. Tap "Re-score with AI" when you are back online.';
+    await saveEntry(a,basicResult(a),'basic');setMsg(why);render();return;
+  }
+  state.busy=true;state.err=null;render();
+  ctl=new AbortController();
+  try{
+    const {text}=await claude(buildPrompt(a,T()),{signal:ctl.signal});
+    await saveEntry(a,cleanResult(parseJSON(text)),'ai');
+  }catch(e){
+    state.busy=false;
+    if(e&&e.code==='cancelled'){render();return}
+    state.err={msg:errCopy(e&&e.code),basic:true,fatal:true};render();
+  }
+}
+async function saveEntry(a,res,scorer){
+  const date=T();
+  const entry={id:'day-'+date,date,answers:a,scores:res.scores,habits:res.habits,insight:res.insight,tomorrow:res.tomorrow,xp:sumXP(res.scores),scorer,savedAt:Date.now()};
+  state.entries=state.entries.filter(e=>e.id!==entry.id).concat(entry);
+  persistEntries();
+  state.mode='dash';state.tab='today';state.busy=false;state.err=null;state.answers=blank();state.msg=null;
+  render();window.scrollTo(0,0);
+}
+async function rescore(id){
+  const e=state.entries.find(x=>x.id===id);if(!e)return;
+  state.rescoring=id;setMsg(null);render();
+  try{
+    const {text}=await claude(buildPrompt(e.answers||blank(),e.date));
+    const res=cleanResult(parseJSON(text));
+    Object.assign(e,{scores:res.scores,habits:res.habits,insight:res.insight,tomorrow:res.tomorrow,xp:sumXP(res.scores),scorer:'ai'});
+    persistEntries();setMsg('Re-scored with AI.','ok');
+  }catch(err){setMsg(errCopy(err&&err.code),'bad')}
+  state.rescoring=null;render();
+}
+async function getTips(){
+  const s=sorted();if(!s.length)return;
+  const now=STATS.map(x=>({n:x.name,v:Math.round(statNow(x.k).v||0)})).sort((a,b)=>a.v-b.v);
+  const habits=s.slice(-14).flatMap(e=>(e.habits||[]).map(h=>h.name+' ('+h.direction+')'));
+  const prompt=`You coach a student who tracks daily growth. Their six stats out of 100, averaged over their last 7 logged days: ${now.map(x=>x.n+' '+x.v).join(', ')}. Weakest two: ${now[0].n} and ${now[1].n}. Recent habits: ${[...new Set(habits)].slice(0,12).join(', ')||'none logged'}.
+Search the web for evidence-based advice on improving those two areas. Give exactly 3 short, practical tips, one or two sentences each, numbered 1 to 3. Name the kind of source in a few words (for example a university study or a health agency). No headings and no extra text.`;
+  state.tipsBusy=true;setMsg(null);render();
+  try{
+    const r=await claude(prompt,{search:true,maxTokens:900});
+    state.tips={text:r.text,sources:r.sources.slice(0,6),date:T()};
+    lsSet(KEY_TIPS,state.tips);
+  }catch(e){setMsg(errCopy(e&&e.code),'bad')}
+  state.tipsBusy=false;render();
+}
+function validate(){
+  const q=QS[state.step];
+  if(q.id==='sleep'){const n=Number(state.answers.sleep);if(state.answers.sleep===''||!(n>=0&&n<=24))return'Enter hours between 0 and 24.'}
+  if(q.id==='mood'&&!state.answers.mood)return'Pick a number from 1 to 5.';
+  return null;
+}
+function saveSettings(){
+  state.settings.apiKey=document.getElementById('s-key').value.trim();
+  state.settings.model=document.getElementById('s-model').value.trim()||'claude-haiku-5-5';
+  lsSet(KEY_S,state.settings);setMsg('Settings saved on this device.','ok');render();
+}
+async function testKey(){
+  saveSettings();
+  if(!state.settings.apiKey){setMsg('Paste your API key first.','bad');render();return}
+  setMsg('Testing the key...');render();
+  try{await claude('Reply with the single word OK.',{maxTokens:10});setMsg('The key works.','ok')}
+  catch(e){setMsg(errCopy(e&&e.code),'bad')}
+  render();
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify({app:'growth-log',version:1,exported:new Date().toISOString(),entries:state.entries},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='growth-log-backup-'+T()+'.json';
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+}
+function importData(file){
+  const fr=new FileReader();
+  fr.onload=()=>{
+    try{
+      const j=JSON.parse(fr.result);const list=(Array.isArray(j)?j:j.entries||[]).filter(validEntry);
+      if(!list.length)throw 0;
+      const ids=new Set(list.map(e=>e.id));
+      state.entries=state.entries.filter(e=>!ids.has(e.id)).concat(list);
+      persistEntries();setMsg('Imported '+list.length+' day'+(list.length===1?'':'s')+'.','ok');
+    }catch(e){setMsg('That file is not a Growth Log backup.','bad')}
+    render();
+  };
+  fr.readAsText(file);
+}
+async function install(){
+  const e=state.installEvt;if(!e)return;
+  e.prompt();try{await e.userChoice}catch(x){}
+  state.installEvt=null;render();
+}
+function act(a,ds){
+  if(a==='tab'){state.tab=ds.t;state.confirmDel=null;state.confirmWipe=false;setMsg(null);render();window.scrollTo(0,0)}
+  else if(a==='start'){const t=todayEntry();state.answers=t?{...blank(),...t.answers}:blank();state.mode='check';state.step=0;state.err=null;render(true);window.scrollTo(0,0)}
+  else if(a==='cancel'){state.mode='dash';state.err=null;render()}
+  else if(a==='back'){state.step=Math.max(0,state.step-1);state.err=null;render(true)}
+  else if(a==='next'){const v=validate();if(v){state.err={msg:v};render(true);return}state.err=null;state.step++;render(true)}
+  else if(a==='submit'){const v=validate();if(v){state.err={msg:v};render(true);return}submit()}
+  else if(a==='stop'){ctl&&ctl.abort()}
+  else if(a==='basicsave'){saveEntry({...state.answers},basicResult(state.answers),'basic')}
+  else if(a==='sleep'){state.answers.sleep=ds.v;state.err=null;render(true)}
+  else if(a==='scale'){state.answers.mood=ds.v;state.err=null;render()}
+  else if(a==='chart'){state.chart=ds.k;render()}
+  else if(a==='rescore'){rescore(ds.id)}
+  else if(a==='tips'){getTips()}
+  else if(a==='savesettings'){saveSettings()}
+  else if(a==='testkey'){testKey()}
+  else if(a==='export'){exportData()}
+  else if(a==='install'){install()}
+  else if(a==='del'){
+    if(state.confirmDel===ds.id){state.entries=state.entries.filter(e=>e.id!==ds.id);persistEntries();state.confirmDel=null}
+    else state.confirmDel=ds.id;
+    render();
+  }
+  else if(a==='wipe'){
+    if(state.confirmWipe){state.entries=[];state.tips=null;persistEntries();lsSet(KEY_TIPS,null);state.confirmWipe=false;setMsg('All days deleted from this device.','ok')}
+    else state.confirmWipe=true;
+    render();
+  }
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(b)act(b.dataset.action,b.dataset)});
+document.addEventListener('input',e=>{const f=e.target.dataset&&e.target.dataset.field;if(f)state.answers[f]=e.target.value});
+document.addEventListener('change',e=>{if(e.target.id==='s-import'&&e.target.files[0]){importData(e.target.files[0]);e.target.value=''}});
+window.addEventListener('online',()=>render());
+window.addEventListener('offline',()=>render());
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();state.installEvt=e;render()});
+window.addEventListener('appinstalled',()=>{state.installEvt=null;render()});
+
+/* ---------- charts ---------- */
+function radarSVG(){
+  const cx=180,cy=160,R=88,n=STATS.length;
+  const pt=(i,r)=>{const a=-Math.PI/2+i*2*Math.PI/n;return[cx+Math.cos(a)*r,cy+Math.sin(a)*r]};
+  const f=p=>p.map(x=>x.toFixed(1)).join(',');
+  let g='';
+  [25,50,75,100].forEach(l=>{g+=`<polygon points="${STATS.map((_,i)=>f(pt(i,R*l/100))).join(' ')}" fill="none" stroke="var(--line)"/>`});
+  STATS.forEach((_,i)=>{const p=pt(i,R);g+=`<line x1="${cx}" y1="${cy}" x2="${p[0].toFixed(1)}" y2="${p[1].toFixed(1)}" stroke="var(--line)"/>`});
+  const now=STATS.map(s=>statNow(s.k));
+  if(now.every(x=>x.p!=null)) g+=`<polygon points="${now.map((x,i)=>f(pt(i,R*x.p/100))).join(' ')}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/>`;
+  if(now.every(x=>x.v!=null)){
+    g+=`<polygon points="${now.map((x,i)=>f(pt(i,R*x.v/100))).join(' ')}" fill="var(--accent)" fill-opacity=".2" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>`;
+    now.forEach((x,i)=>{const p=pt(i,R*x.v/100);g+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="4" fill="var(--c-${STATS[i].k})" stroke="var(--surface)" stroke-width="1.5"/>`});
+  }
+  STATS.forEach((s,i)=>{
+    const a=-Math.PI/2+i*2*Math.PI/n,c=Math.cos(a),sn=Math.sin(a);
+    const x=cx+c*(R+16),y=cy+sn*(R+16)+(sn<-0.8?-14:sn>0.8?6:0);
+    const anc=c>0.3?'start':c<-0.3?'end':'middle',v=now[i].v;
+    g+=`<text x="${x.toFixed(1)}" y="${(y+4).toFixed(1)}" text-anchor="${anc}">${s.name}<tspan class="v" x="${x.toFixed(1)}" dy="14">${v==null?'–':Math.round(v)}</tspan></text>`;
+  });
+  return `<svg class="radar" viewBox="0 0 360 330" role="img" aria-label="Radar chart of your six stats">${g}</svg>`;
+}
+function lineSVG(key){
+  const s=sorted().slice(-30),W=360,H=180,L=30,Rr=12,T0=14,B=26;
+  const ymax=key==='overall'?60:10;
+  const val=e=>key==='overall'?(Number(e.xp)||0):(Number(e.scores[key])||0);
+  const color=key==='overall'?'var(--accent)':`var(--c-${key})`;
+  const t0=dayNum(s[0].date),t1=dayNum(s[s.length-1].date),span=Math.max(t1-t0,1),iw=W-L-Rr;
+  const x=e=>s.length===1||t1===t0?L+iw/2:L+(dayNum(e.date)-t0)/span*iw;
+  const y=v=>T0+(1-v/ymax)*(H-T0-B);
+  let g='';
+  [0,ymax/2,ymax].forEach(t=>{g+=`<line x1="${L}" y1="${y(t).toFixed(1)}" x2="${W-Rr}" y2="${y(t).toFixed(1)}" stroke="var(--line)" ${t===0?'':'stroke-dasharray="3 3"'}/><text x="${L-6}" y="${(y(t)+3).toFixed(1)}" text-anchor="end">${t}</text>`});
+  const pts=s.map(e=>[x(e),y(val(e))]);
+  const path=pts.map(p=>p.map(v=>v.toFixed(1)).join(',')).join(' L');
+  if(s.length>1){
+    const base=y(0);
+    g+=`<path d="M${path} L${pts[pts.length-1][0].toFixed(1)},${base} L${pts[0][0].toFixed(1)},${base} Z" fill="${color}" fill-opacity=".13"/>`;
+    g+=`<path d="M${path}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }
+  if(s.length<=14) pts.forEach((p,i)=>{if(i<pts.length-1)g+=`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="${color}"/>`});
+  const lp=pts[pts.length-1];
+  g+=`<circle cx="${lp[0].toFixed(1)}" cy="${lp[1].toFixed(1)}" r="5" fill="${color}" stroke="var(--surface)" stroke-width="2"/>`;
+  g+=`<text x="${L}" y="${H-6}" text-anchor="start">${esc(fmtShort(s[0].date))}</text>`;
+  if(s.length>1) g+=`<text x="${W-Rr}" y="${H-6}" text-anchor="end">${esc(fmtShort(s[s.length-1].date))}</text>`;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Line chart of your ${key==='overall'?'daily total':key} score over time">${g}</svg>`;
+}
+
+/* ---------- views ---------- */
+const banner=()=>state.msg?`<p class="banner ${state.msg.kind}" role="status">${esc(state.msg.text)}</p>`:'';
+function header(){
+  const xp=totalXP(),lvl=1+Math.floor(xp/LEVEL_XP),into=xp%LEVEL_XP,st=streak();
+  return `<header class="head">
+    <div class="head-top">
+      <div><div class="over">Growth Log${online()?'':'<span class="pill off">Offline</span>'}</div><h1 class="level">Level ${lvl}<small>${xp} XP</small></h1></div>
+      <div class="streak"><b>${st}</b><span>day streak</span></div>
+    </div>
+    <div class="xp" role="progressbar" aria-valuemin="0" aria-valuemax="${LEVEL_XP}" aria-valuenow="${into}" aria-label="Progress to next level"><i style="width:${(into/LEVEL_XP*100).toFixed(1)}%"></i></div>
+    <div class="xp-cap"><span>${into} / ${LEVEL_XP} XP</span><span>Next: Level ${lvl+1}</span></div>
+  </header>`;
+}
+function todayCard(){
+  const t=todayEntry();
+  if(!t) return `<section class="card">
+    <h2>Today</h2>
+    <p><strong>You have not checked in yet.</strong> Answer ${QS.length} short questions about your day. ${hasAI()?'Claude':'The basic scorer'} turns them into scores for six stats.</p>
+    <div class="row"><button class="btn" data-action="start">Check in for today</button></div>
+  </section>`;
+  const canRe=t.scorer==='basic'&&hasAI();
+  return `<section class="card">
+    <div class="card-head"><h2>Today</h2><span class="note-sm">${t.scorer==='basic'?'Basic scoring':'Scored by Claude'}</span></div>
+    <div class="today-score"><b>${Number(t.xp)||0}</b><span>/ 60 XP</span></div>
+    ${t.insight?`<p>${esc(t.insight)}</p>`:''}
+    ${t.tomorrow?`<div class="tip"><span>For tomorrow</span>${esc(t.tomorrow)}</div>`:''}
+    <div class="row">
+      <button class="btn ghost" data-action="start">Redo today's check-in</button>
+      ${canRe?`<button class="btn" data-action="rescore" data-id="${esc(t.id)}" ${state.rescoring?'disabled':''}>${state.rescoring===t.id?'Scoring...':'Re-score with AI'}</button>`:''}
+    </div>
+  </section>`;
+}
+function statsCard(){
+  const has=state.entries.length>0;
+  const rows=STATS.map(s=>{
+    const n=statNow(s.k),v=n.v==null?null:Math.round(n.v);
+    let d='<span class="stat-d">no change data</span>';
+    if(n.p!=null){const dl=Math.round(n.v-n.p);d=dl>0?`<span class="stat-d up">▲ ${dl}</span>`:dl<0?`<span class="stat-d down">▼ ${-dl}</span>`:`<span class="stat-d">– 0</span>`}
+    return `<div class="stat">
+      <div class="stat-name"><span class="sw" style="background:var(--c-${s.k})"></span>${s.name}</div>
+      <div class="stat-val">${v==null?'–':v}</div>
+      <div class="stat-hint">${s.hint}</div>${d}
+      <div class="bar"><i style="width:${v||0}%;background:var(--c-${s.k})"></i></div>
+    </div>`;
+  }).join('');
+  return `<section class="card">
+    <div class="card-head"><h2>Stats</h2><span class="note-sm">Average of your last 7 logged days, out of 100</span></div>
+    ${radarSVG()}
+    ${has?'':`<div class="empty"><strong>Your stats appear after the first check-in.</strong><span>Each day adds to six scores. The shape on the chart grows as you log more days.</span></div>`}
+    <div>${rows}</div>
+    ${state.entries.length>7?'<p class="note-sm">The dashed outline on the chart is the 7 logged days before that.</p>':''}
+  </section>`;
+}
+function growthCard(){
+  if(!state.entries.length)return'';
+  const chips=[{k:'overall',name:'Overall'}].concat(STATS.map(s=>({k:s.k,name:s.name}))).map(c=>`<button class="chip" data-action="chart" data-k="${c.k}" aria-pressed="${state.chart===c.k}">${c.name}</button>`).join('');
+  return `<section class="card">
+    <div class="card-head"><h2>Growth</h2><span class="note-sm">${state.chart==='overall'?'Daily total, out of 60':'Daily score, out of 10'}</span></div>
+    <div class="chips">${chips}</div>
+    ${lineSVG(state.chart)}
+  </section>`;
+}
+function habitsCard(){
+  const s=sorted().slice(-14),map={};
+  s.forEach(e=>(e.habits||[]).forEach(h=>{const k=h.name.toLowerCase();(map[k]=map[k]||{name:h.name,n:0,last:'steady'}).n++;map[k].last=h.direction}));
+  const list=Object.values(map).sort((a,b)=>b.n-a.n).slice(0,10);
+  if(!list.length)return'';
+  const ar={up:'▲',down:'▼',steady:'–'},lb={up:'improving',down:'slipping',steady:'steady'};
+  return `<section class="card">
+    <div class="card-head"><h2>Habit watch</h2><span class="note-sm">Last 14 logged days</span></div>
+    <div class="habits">${list.map(h=>`<span class="habit ${h.last}" title="${lb[h.last]}"><span class="ar">${ar[h.last]}</span>${esc(h.name)}<em>×${h.n}</em></span>`).join('')}</div>
+    <p class="note-sm">The arrow shows the latest direction. The count is how many days you mentioned it.</p>
+  </section>`;
+}
+function tipsCard(){
+  if(!state.entries.length)return'';
+  const t=state.tips;
+  const can=hasAI();
+  const links=t&&t.sources&&t.sources.length?`<div class="srcs"><span class="note-sm">Sources</span>${t.sources.filter(x=>/^https:\/\//.test(x.url)).map(x=>`<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a>`).join('')}</div>`:'';
+  return `<section class="card">
+    <div class="card-head"><h2>Tips from the web</h2>${t?`<span class="note-sm">${esc(fmtShort(t.date))}</span>`:''}</div>
+    ${t?`<p class="web">${esc(t.text)}</p>${links}`:`<p class="note-sm">Claude searches the web for advice on your two weakest stats and your habits.</p>`}
+    <div class="row"><button class="btn ${t?'ghost':''}" data-action="tips" ${can&&!state.tipsBusy?'':'disabled'}>${state.tipsBusy?'Searching...':t?'Refresh tips':'Get tips from the web'}</button></div>
+    ${can?'':`<p class="note-sm">${state.settings.apiKey?'Needs internet.':'Needs an API key in Settings and internet.'} Saved tips stay readable offline.</p>`}
+  </section>`;
+}
+function historyCard(){
+  const list=sorted().reverse();
+  if(!list.length)return `<section class="card"><div class="empty"><strong>No days logged yet.</strong><span>Your past check-ins and their scores will be listed here.</span></div></section>`;
+  const body=list.map(e=>{
+    const qa=QS.filter(q=>e.answers&&String(e.answers[q.id]||'').trim()).map(q=>`<div class="qa"><b>${q.label}</b><span>${esc(e.answers[q.id]+(q.id==='sleep'?' hours':q.id==='mood'?' / 5':''))}</span></div>`).join('');
+    const mini=STATS.map(s=>`<span style="color:var(--c-${s.k})">${s.name.slice(0,3).toUpperCase()} ${Number(e.scores[s.k])||0}</span>`).join('');
+    const confirm=state.confirmDel===e.id;
+    const canRe=e.scorer==='basic'&&hasAI();
+    return `<details class="day"><summary><span>${esc(fmtLong(e.date))}</span><span class="t">${Number(e.xp)||0}/60</span></summary>
+      <div class="day-body">
+        <div class="mini">${mini}</div>
+        <span class="note-sm">${e.scorer==='basic'?'Basic scoring':'Scored by Claude'}</span>
+        ${e.insight?`<p>${esc(e.insight)}</p>`:''}
+        ${qa}
+        <div class="row">
+          ${canRe?`<button class="btn" data-action="rescore" data-id="${esc(e.id)}" ${state.rescoring?'disabled':''}>${state.rescoring===e.id?'Scoring...':'Re-score with AI'}</button>`:''}
+          <button class="btn danger" data-action="del" data-id="${esc(e.id)}">${confirm?'Tap again to remove':'Remove this day'}</button>
+        </div>
+      </div></details>`;
+  }).join('');
+  return `<section class="card"><div class="card-head"><h2>History</h2><span class="note-sm">${list.length} day${list.length===1?'':'s'} logged</span></div>${body}</section>`;
+}
+function settingsView(){
+  const standalone=window.matchMedia&&matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+  return `<h1 class="page-title">Settings</h1>${banner()}
+  <section class="card">
+    <h2>AI scoring</h2>
+    <p class="note-sm">Claude scores your check-ins using your own Anthropic API key. The key stays on this device and is sent only to Anthropic. Without a key, or when offline, the app uses basic scoring.</p>
+    <label class="f">API key<input id="s-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(state.settings.apiKey)}" placeholder="sk-ant-..."></label>
+    <label class="f">Model<input id="s-model" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" value="${esc(state.settings.model)}"><span>claude-haiku-5-5 is the fastest and cheapest.</span></label>
+    <div class="row"><button class="btn" data-action="savesettings">Save</button><button class="btn ghost" data-action="testkey">Test key</button></div>
+    <p class="note-sm">Get a key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">console.anthropic.com</a>. API use is billed to that account and is separate from the Claude app plan.</p>
+  </section>
+  <section class="card">
+    <h2>Your data</h2>
+    <p class="note-sm">${state.entries.length} day${state.entries.length===1?'':'s'} saved on this device. Clearing browser data or uninstalling the app can erase them, so export a backup now and then. Backups do not include your API key.</p>
+    <div class="row">
+      <button class="btn ghost" data-action="export" ${state.entries.length?'':'disabled'}>Export backup</button>
+      <label class="btn ghost" style="display:inline-flex;align-items:center">Import backup<input id="s-import" type="file" accept="application/json,.json" hidden></label>
+    </div>
+    <div class="row"><button class="btn danger" data-action="wipe" ${state.entries.length?'':'disabled'}>${state.confirmWipe?'Tap again to delete everything':'Delete all days'}</button></div>
+  </section>
+  <section class="card">
+    <h2>Install</h2>
+    ${standalone?'<p>You are using the installed app.</p>':state.installEvt?'<p class="note-sm">Add Growth Log to your home screen so it opens like an app, even offline.</p><div class="row"><button class="btn" data-action="install">Install app</button></div>':'<p class="note-sm">In Chrome, open the menu and tap "Add to Home screen" or "Install app". On iPhone, open this page in Safari, tap Share, then "Add to Home Screen".</p>'}
+  </section>`;
+}
+function todayView(){return header()+banner()+todayCard()+habitsCard()}
+function statsView(){return `<h1 class="page-title">Stats</h1>${banner()}${statsCard()}${growthCard()}${tipsCard()}`}
+function historyView(){return `<h1 class="page-title">History</h1>${banner()}${historyCard()}`}
+function renderCheck(){
+  if(state.busy) return `<section class="card">
+      <h2>Scoring your day</h2>
+      <div class="spin">Claude is reading your answers</div>
+      <div class="row"><button class="btn ghost" data-action="stop">Stop</button></div>
+    </section>`;
+  if(state.err&&state.err.fatal) return `<section class="card">
+      <h2>Could not finish</h2>
+      <p class="err">${esc(state.err.msg)}</p>
+      <div class="row">
+        <button class="btn" data-action="submit">Try again</button>
+        ${state.err.basic?'<button class="btn ghost" data-action="basicsave">Save with basic scoring</button>':''}
+        <button class="btn ghost" data-action="back">Edit answers</button>
+      </div>
+    </section>`;
+  const q=QS[state.step],last=state.step===QS.length-1;
+  const prog=QS.map((_,i)=>`<i class="${i<=state.step?'on':''}"></i>`).join('');
+  let input='';
+  if(q.type==='num'){
+    input=`<input id="f-${q.id}" data-field="${q.id}" type="number" inputmode="decimal" min="0" max="24" step="0.5" value="${esc(state.answers[q.id])}" data-autofocus>
+      <div class="row">${[5,6,7,8,9].map(n=>`<button class="chip" data-action="sleep" data-v="${n}" aria-pressed="${String(state.answers.sleep)===String(n)}">${n} h</button>`).join('')}</div>`;
+  }else if(q.type==='scale'){
+    input=`<div class="scale" role="group" aria-label="Mood and energy">${[1,2,3,4,5].map(n=>`<button data-action="scale" data-v="${n}" aria-pressed="${String(state.answers.mood)===String(n)}">${n}</button>`).join('')}</div>
+      <div class="scale-cap"><span>Drained</span><span>Great</span></div>`;
+  }else{
+    input=`<textarea id="f-${q.id}" data-field="${q.id}" placeholder="${esc(q.ph||'')}" data-autofocus>${esc(state.answers[q.id])}</textarea>`;
+  }
+  return `<section class="card">
+    <div class="card-head"><h2>Check-in · ${state.step+1} of ${QS.length}</h2><span class="note-sm">${esc(fmtLong(T()))}</span></div>
+    <div class="prog" aria-hidden="true">${prog}</div>
+    <h1 class="q-title"><label for="f-${q.id}">${q.title}</label></h1>
+    <p class="q-help">${q.help}${q.type==='text'&&q.id!=='note'?' You can leave it blank.':''}</p>
+    ${input}
+    ${state.err?`<p class="err" role="alert">${esc(state.err.msg)}</p>`:''}
+    <div class="row">
+      ${state.step>0?'<button class="btn ghost" data-action="back">Back</button>':'<button class="btn ghost" data-action="cancel">Cancel</button>'}
+      <button class="btn" data-action="${last?'submit':'next'}">${last?'Score my day':'Next'}</button>
+    </div>
+  </section>`;
+}
+function render(focus){
+  const check=state.mode==='check';
+  document.body.classList.toggle('check',check);
+  if(check){app.innerHTML=renderCheck();nav.hidden=true}
+  else{
+    app.innerHTML=state.tab==='stats'?statsView():state.tab==='history'?historyView():state.tab==='settings'?settingsView():todayView();
+    nav.hidden=false;
+    nav.innerHTML=TABS.map(([k,n])=>`<button data-action="tab" data-t="${k}" ${state.tab===k?'aria-current="page"':''}><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[k]}</svg>${n}</button>`).join('');
+  }
+  if(focus){const el=app.querySelector('[data-autofocus]');if(el&&check){el.focus();if(el.setSelectionRange&&el.value)try{el.setSelectionRange(el.value.length,el.value.length)}catch(e){}}}
+}
+render();
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
